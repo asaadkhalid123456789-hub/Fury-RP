@@ -55,4 +55,4 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
 });
 
 // ⚡ Bot login – replace with your bot token
-client.login('MTQ4NzA3NzI3MTcyOTczNzc2OA.GZwnGl.79IdD46ZumhHtIq_JtHJ1gDrlbsevXtF5Ki-Ko');
+client.login('MTQ4NzA3NzI3MTcyOTczNzc2OA.GS3u-4.1kjN3Ka49KC3HHlPCl1mjS2FMqh4Frinoxc4zk');
