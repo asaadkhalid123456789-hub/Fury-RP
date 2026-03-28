@@ -1,4 +1,7 @@
+require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
+const axios = require('axios');
+
 const client = new Client({ 
     intents: [
         GatewayIntentBits.Guilds,
@@ -7,52 +10,60 @@ const client = new Client({
     ] 
 });
 
-// ⚡ Replace with your channel IDs
-const WAITING_CHANNEL_ID = '1480131803976171611'; // string
-const ASSIST_CHANNELS = [
-    '1480131755770908733',
-    '1480131759151775779',
-    '1480131763266260992',
-    '1480131768131522590',
-    '1480131772112175164',
-    '1480131776004489237',
-    '1480131780773285889',
-    '1480131785223573646',
-    '1480131790160007218',
-    '1480131794538860604'
-];
+// Environment variables
+const TOKEN = process.env.TOKEN;
+const WAITING_CHANNEL_ID = process.env.WAITING_CHANNEL_ID;
+const MANAGEMENT_ROLE_ID = process.env.MANAGEMENT_ROLE_ID;
+const ASSIST_CHANNELS = process.env.ASSIST_CHANNELS.split(',');
+const API_URL = process.env.API_URL; // optional API
 
-// ⚡ Replace with the role ID of management staff
-const MANAGEMENT_ROLE_ID = '1480130517109047326'; // string
+// Optional: Example axios request (can be removed if not used)
+async function checkServerStatus() {
+    if (!API_URL) return;
+    try {
+        const response = await axios.get(API_URL);
+        console.log('Server status:', response.data);
+    } catch (err) {
+        console.error('Failed to fetch server status:', err.message);
+    }
+}
 
+// Voice state update for assist bot
 client.on('voiceStateUpdate', async (oldState, newState) => {
-    // Only trigger when a user joins the Waiting channel
-    if (newState.channelId === WAITING_CHANNEL_ID) {
-        const guild = newState.guild;
-        let moved = false;
+    if (newState.channelId !== WAITING_CHANNEL_ID) return;
 
-        // Go through all assist channels
-        for (const assistId of ASSIST_CHANNELS) {
-            if (!channel || !channel.isVoiceBased()) continue;
-            if (!channel) continue;
+    const member = newState.member;
+    const guild = newState.guild;
+    let moved = false;
 
-            const members = channel.members;
-            const hasManagement = members.some(member => member.roles.cache.has(MANAGEMENT_ROLE_ID));
+    for (const assistId of ASSIST_CHANNELS) {
+        const channel = guild.channels.cache.get(assistId);
+        if (!channel || !channel.isVoiceBased()) continue;
 
-            // Move user only if a management user is present and channel has space
-            if (hasManagement && members.size < 2) {
-                if (!newState.member) return;
+        const members = channel.members;
+        const hasManagement = members.some(m => m.roles.cache.has(MANAGEMENT_ROLE_ID));
+
+        if (hasManagement && members.size < 2) {
+            try {
+                await member.voice.setChannel(channel);
+                console.log(`Moved ${member.user.tag} to ${channel.name}`);
                 moved = true;
-                break; // stop after moving to first available channel
+                break; // stop after first successful move
+            } catch (err) {
+                console.error('Failed to move user:', err);
             }
         }
+    }
 
-        // If no available Assist channel, user stays in Waiting
-        if (!moved) {
-            console.log(`${newState.member.user.tag} is waiting for a free management channel.`);
-        }
+    if (!moved) {
+        console.log(`${member.user.tag} is waiting for a free management channel.`);
     }
 });
 
-// ⚡ Bot login – replace with your bot token
-client.login('MTQ4NzA3NzI3MTcyOTczNzc2OA.GS3u-4.1kjN3Ka49KC3HHlPCl1mjS2FMqh4Frinoxc4zk');
+client.once('ready', () => {
+    console.log(`${client.user.tag} is online!`);
+    // Optional: check API every 5 minutes
+    setInterval(checkServerStatus, 5 * 60 * 1000);
+});
+
+client.login(TOKEN);
